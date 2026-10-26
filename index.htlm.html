@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cercaparola su Giovanni Verga</title>
+<style>
+  :root{--bg:#f6f1e7;--ink:#2b2118;--card:#fffdf8;--line:#cdbfa8;--accent:#8a3b12;--sel:#ffd27a;--ok:#bfe3b4}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Georgia,"Times New Roman",serif;background:var(--bg);color:var(--ink);padding:16px}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:clamp(1.4rem,4vw,2rem);color:var(--accent)}
+  p.sub{margin:0 0 14px;line-height:1.4}
+  .main{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  #grid{display:grid;grid-template-columns:repeat(12,1fr);gap:0;background:var(--card);border:2px solid var(--ink);border-radius:6px;width:min(100%,520px);aspect-ratio:1;user-select:none;touch-action:none;flex:0 0 auto}
+  .c{display:flex;align-items:center;justify-content:center;font:700 clamp(14px,3.6vw,22px) system-ui,sans-serif;border:1px solid var(--line);cursor:pointer}
+  .c.sel{background:var(--sel)}
+  .c.found{background:var(--ok)}
+  .c.sol{background:#fff0b3}
+  .c.mys{background:#f4a6a6}
+  .side{flex:1 1 260px;min-width:240px}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px}
+  .box h2{margin:0 0 8px;font-size:1rem}
+  #words{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 12px;font:600 .95rem system-ui,sans-serif}
+  #words span.done{text-decoration:line-through;color:#7a7a7a}
+  #mystery{display:flex;gap:6px;flex-wrap:wrap}
+  #mystery div{width:34px;height:40px;border:2px solid var(--ink);border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;font:700 1.3rem system-ui,sans-serif}
+  #msg{margin-top:8px;font-weight:700;color:var(--accent);min-height:1.4em}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  button{font:600 .9rem system-ui,sans-serif;padding:8px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--card);cursor:pointer}
+  button:hover{background:var(--sel)}
+  #count{font:600 .85rem system-ui,sans-serif;margin-bottom:6px}
+  @media print{
+    body{background:#fff;padding:0}
+    .btns,#msg{display:none}
+    .c.found,.c.sel{background:#fff}
+    #words span.done{text-decoration:none;color:inherit}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cercaparola su Giovanni Verga</h1>
+  <p class="sub">Trova le parole legate alla vita e alle opere di Verga: trascina il dito (o il mouse) dalla prima all'ultima lettera, in orizzontale, verticale o diagonale, anche all'indietro. Le lettere che avanzano, lette in ordine, formano il titolo di una celebre novella.</p>
+  <div class="main">
+    <div id="grid" aria-label="Griglia del cercaparola"></div>
+    <div class="side">
+      <div class="box">
+        <h2>Parole da trovare</h2>
+        <div id="count"></div>
+        <div id="words"></div>
+      </div>
+      <div class="box">
+        <h2>Parola misteriosa</h2>
+        <div id="mystery"></div>
+        <div id="msg"></div>
+      </div>
+      <div class="btns">
+        <button id="reset">Nuova partita</button>
+        <button id="solve">Mostra soluzione</button>
+        <button onclick="window.print()">Stampa</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const GRID = [
+"CDELLEVONGOS",
+"AAOGESUALDOM",
+"PIINIZZIVORP",
+"ILACNSOAIMUR",
+"NGSANENPTSSI",
+"EOITANAUAITM",
+"RVCAVALLERIA",
+"AAINOTILEECV",
+"MLLIIOMPRVAE",
+"OAIAGREVGENR",
+"RMAZZERTICAA",
+"ELOSCRITTORE"
+];
+const WORDS = ["ACITREZZA","AMORE","CAPINERA","CATANIA","CAVALLERIA","DON","GESUALDO","GIOVANNI","LUPA","MALAVOGLIA","MILANO","NOVELLE","PRIMAVERA","ROMA","RUSTICANA","SCRITTORE","SENATORE","SICILIA","SOGNO","TIGRE","VERGA","VERISMO","VITA","VIZZINI"];
+const N = 12;
+const DIRS = [[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];
+
+// individua la posizione di ogni parola e le celle "avanzate"
+const POS = {};
+for (const w of WORDS) {
+  outer:
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++) for (const d of DIRS) {
+    const cells=[];
+    let ok=true;
+    for (let i=0;i<w.length;i++){
+      const rr=r+d[0]*i, cc=c+d[1]*i;
+      if (rr<0||rr>=N||cc<0||cc>=N||GRID[rr][cc]!==w[i]){ok=false;break;}
+      cells.push([rr,cc]);
+    }
+    if (ok){POS[w]=cells;break outer;}
+  }
+}
+const covered = new Set();
+Object.values(POS).forEach(cs=>cs.forEach(([r,c])=>covered.add(r*N+c)));
+const MYST = [];
+for (let r=0;r<N;r++) for (let c=0;c<N;c++) if(!covered.has(r*N+c)) MYST.push([r,c]);
+
+const gridEl=document.getElementById('grid');
+const wordsEl=document.getElementById('words');
+const mystEl=document.getElementById('mystery');
+const msgEl=document.getElementById('msg');
+const countEl=document.getElementById('count');
+const cells=[];
+let found=new Set();
+
+for (let r=0;r<N;r++) for (let c=0;c<N;c++){
+  const d=document.createElement('div');
+  d.className='c'; d.textContent=GRID[r][c]; d.dataset.r=r; d.dataset.c=c;
+  gridEl.appendChild(d); cells.push(d);
+}
+function cell(r,c){return cells[r*N+c];}
+
+function renderWords(){
+  wordsEl.innerHTML='';
+  for (const w of WORDS){
+    const s=document.createElement('span'); s.textContent=w;
+    if(found.has(w)) s.className='done';
+    wordsEl.appendChild(s);
+  }
+  countEl.textContent='Trovate: '+found.size+' / '+WORDS.length;
+}
+function renderMystery(){
+  mystEl.innerHTML='';
+  const all=found.size===WORDS.length;
+  MYST.forEach(()=>{const d=document.createElement('div');mystEl.appendChild(d);});
+  if(all){
+    MYST.forEach(([r,c],i)=>{mystEl.children[i].textContent=GRID[r][c];cell(r,c).classList.add('mys');});
+    msgEl.textContent='Bravo! La parola misteriosa è '+MYST.map(([r,c])=>GRID[r][c]).join('')+' (Rosso Malpelo).';
+  } else msgEl.textContent='';
+}
+function reset(){
+  found=new Set();
+  cells.forEach(c=>c.className='c');
+  renderWords(); renderMystery();
+}
+
+// selezione
+let start=null, cur=null;
+function lineCells(a,b){
+  const dr=b[0]-a[0], dc=b[1]-a[1];
+  if (!(dr===0||dc===0||Math.abs(dr)===Math.abs(dc))) return [a];
+  const n=Math.max(Math.abs(dr),Math.abs(dc));
+  const sr=Math.sign(dr), sc=Math.sign(dc);
+  const out=[];
+  for(let i=0;i<=n;i++) out.push([a[0]+sr*i,a[1]+sc*i]);
+  return out;
+}
+function clearSel(){cells.forEach(c=>c.classList.remove('sel'));}
+function paintSel(){
+  clearSel();
+  if(!start||!cur) return;
+  lineCells(start,cur).forEach(([r,c])=>cell(r,c).classList.add('sel'));
+}
+function cellAt(x,y){
+  const el=document.elementFromPoint(x,y);
+  if(el&&el.classList.contains('c')) return [+el.dataset.r,+el.dataset.c];
+  return null;
+}
+gridEl.addEventListener('pointerdown',e=>{
+  const p=cellAt(e.clientX,e.clientY); if(!p) return;
+  start=p; cur=p; paintSel();
+  gridEl.setPointerCapture(e.pointerId);
+});
+gridEl.addEventListener('pointermove',e=>{
+  if(!start) return;
+  const p=cellAt(e.clientX,e.clientY);
+  if(p){cur=p;paintSel();}
+});
+gridEl.addEventListener('pointerup',()=>{
+  if(!start) return;
+  const line=lineCells(start,cur);
+  const str=line.map(([r,c])=>GRID[r][c]).join('');
+  const rev=str.split('').reverse().join('');
+  const w=WORDS.find(x=>x===str||x===rev);
+  clearSel();
+  if(w && !found.has(w)){
+    found.add(w);
+    line.forEach(([r,c])=>cell(r,c).classList.add('found'));
+    renderWords(); renderMystery();
+  }
+  start=cur=null;
+});
+gridEl.addEventListener('pointercancel',()=>{start=cur=null;clearSel();});
+
+document.getElementById('reset').onclick=reset;
+document.getElementById('solve').onclick=()=>{
+  WORDS.forEach(w=>{found.add(w);POS[w].forEach(([r,c])=>cell(r,c).classList.add('found'));});
+  renderWords(); renderMystery();
+};
+
+reset();
+</script>
+</body>
+</html>
